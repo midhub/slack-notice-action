@@ -41,6 +41,7 @@ async function run(): Promise<void> {
       },
       process.env.GITHUB_TOKEN,
       process.env.SLACK_WEBHOOK_URL,
+      process.env.GITHUB_RUN_ID,
     );
 
     switch (status) {

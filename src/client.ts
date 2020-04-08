@@ -20,8 +20,14 @@ export class Client {
   private webhook: IncomingWebhook;
   private github?: github.GitHub;
   private with: With;
+  private run_id: string;
 
-  constructor(props: With, token?: string, webhookUrl?: string) {
+  constructor(
+    props: With,
+    token?: string,
+    webhookUrl?: string,
+    github_run_id?: string,
+  ) {
     this.with = props;
 
     if (props.status !== 'custom') {
@@ -34,7 +40,12 @@ export class Client {
     if (webhookUrl === undefined) {
       throw new Error('Specify secrets.SLACK_WEBHOOK_URL');
     }
+
+    if (github_run_id === undefined) {
+      throw new Error('Specify secrets.GITHUB_RUN_ID');
+    }
     this.webhook = new IncomingWebhook(webhookUrl);
+    this.run_id = process.env.GITHUB_RUN_ID as string;
   }
 
   async success() {
@@ -81,7 +92,7 @@ export class Client {
       attachments: [
         {
           color: '',
-          title: this.title,
+          // title: this.title,
           fields: await this.fields(),
         },
       ],
@@ -99,33 +110,28 @@ export class Client {
 
     return [
       {
-        title: 'repository',
+        title: 'Repository',
         value: this.repositoryLink,
-        short: false,
+        short: true,
       },
       {
-        title: 'ref',
-        value: github.context.ref,
-        short: false,
-      },
-      {
-        title: 'commit',
-        value: this.commitLink,
-        short: false,
-      },
-      {
-        title: 'author',
+        title: 'Author',
         value: `${author.name}<${author.email}>`,
-        short: false,
+        short: true,
       },
       {
-        title: 'message',
-        value: commit.data.commit.message,
-        short: false,
+        title: 'Ref, Commit Link',
+        value: `${github.context.ref} ${this.commitLink}`,
+        short: true,
       },
       {
-        title: 'workflow',
+        title: 'Workflow Link',
         value: this.workflowLink,
+        short: true,
+      },
+      {
+        title: 'Message',
+        value: commit.data.commit.message,
         short: false,
       },
     ];
@@ -152,18 +158,18 @@ export class Client {
     return 'A GitHub Action has been cancelled';
   }
 
-  private get title() {
-    if (this.with.title !== '') {
-      return this.with.title;
-    }
-    return github.context.workflow;
-  }
+  // private get title() {
+  //   if (this.with.title !== '') {
+  //     return this.with.title;
+  //   }
+  //   return github.context.workflow;
+  // }
 
   private get commitLink() {
     const { sha } = github.context;
     const { owner, repo } = github.context.repo;
 
-    return `<https://github.com/${owner}/${repo}/commit/${sha}|${sha}>`;
+    return `<https://github.com/${owner}/${repo}/commit/${sha}|${sha.toString().slice(-7)}>`;
   }
 
   private get repositoryLink() {
@@ -173,10 +179,9 @@ export class Client {
   }
 
   private get workflowLink() {
-    const { sha } = github.context;
     const { owner, repo } = github.context.repo;
 
-    return `<https://github.com/${owner}/${repo}/commit/${sha}/checks|${github.context.workflow}>`;
+    return `<https://github.com/${owner}/${repo}/actions/runs/${this.run_id}|${github.context.workflow}>`;
   }
 
   private mentionText(mention: string) {
